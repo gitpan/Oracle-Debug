@@ -1,6 +1,6 @@
 /*
 
-# $Id: header.sql,v 1.5 2003/07/09 15:54:30 oradb Exp $
+# $Id: header.sql,v 1.6 2003/07/18 15:40:25 oradb Exp $
 
 The header for the ORADB package .
 
@@ -54,8 +54,9 @@ create or replace package oradb as
 
 	function namespace (xint IN BINARY_INTEGER) RETURN VARCHAR2; 
 	function libunittype (xint IN BINARY_INTEGER) RETURN VARCHAR2;
+	function breakpoint(xint IN BINARY_INTEGER) RETURN VARCHAR2;
 	function errorcode(xint IN BINARY_INTEGER) RETURN VARCHAR2;
-	
+
 end oradb;
 /
 show errors;

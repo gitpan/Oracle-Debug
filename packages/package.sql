@@ -1,5 +1,9 @@
 /*
+
+# $Id: package.sql,v 1.5 2003/07/19 10:40:16 oradb Exp $
+
 Create a dummy package and procedure to debug
+
 */
 
 CREATE OR REPLACE PACKAGE xpack IS
@@ -18,9 +22,10 @@ CREATE OR REPLACE PACKAGE BODY xpack IS
 		xarg IN  VARCHAR2 DEFAULT 'default_proc_value',
 		xret OUT NOCOPY VARCHAR2
 	) IS 
-		-- xret VARCHAR2(64) DEFAULT xarg;
 	BEGIN -- proc
-		SELECT 'in-the-packaged-procedure' INTO xret FROM dual;
+		SELECT 'entering-the-packaged-procedure' INTO xret FROM dual;
+		SELECT TO_CHAR(sysdate, 'YYYYMMDDHH24MISS') INTO xret FROM dual;
+		SELECT 'leaving-the-packaged-procedure' INTO xret FROM dual;
 	END proc;
 
 	FUNCTION func (

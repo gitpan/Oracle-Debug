@@ -1,4 +1,4 @@
-# $Id: README,v 1.9 2003/07/04 14:57:47 oradb Exp $
+# $Id: README,v 1.10 2003/07/19 09:18:32 oradb Exp $
 
 DESCRIPTION
 
@@ -17,8 +17,6 @@ At the very least you will probably have to kill the target process with
 a CTRL-C or similar, but this should be harmless enough.  Also, it is
 probably unlikely that you can reconnect in the middle of a debugger
 session, it is preferable to quit both sessions and start again, etc.
-Getting and setting variables processes are also prone to failures
-or crashes.  
 
 Debugging procedures appears possible, but packages have a problem.
 If you wrap the packaged procedure in an external procedure (like the
@@ -30,8 +28,9 @@ No-one else is expected to use this in anger yet, but you're welcome to try :-)
 
 Full installation instructions and depencies are in the ./INSTALL file
 
-See also the ./demo/oradb file which shows stepping through the 
-accompanying procedure into an associated package.
+See also the ./demo/oradb file which shows stepping through the
+accompanying procedure (./packages/xproc.sql) into an associated package
+(./packages/package.sql).
 
 DEPENDENCIES
 

@@ -1,5 +1,5 @@
 
-# $Id: Debug.pm,v 1.43 2003/07/14 10:00:17 oradb Exp $
+# $Id: Debug.pm,v 1.45 2003/07/19 08:33:28 oradb Exp $
 
 =head1 NAME
 
@@ -18,7 +18,7 @@ use DBI;
 use Term::ReadKey;
 
 use vars qw($VERSION);
-$VERSION = do { my @r = (q$Revision: 1.43 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+$VERSION = do { my @r = (q$Revision: 1.45 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 
 my $DEBUG = $ENV{Oracle_Debug} || 0;
 
@@ -45,8 +45,8 @@ There are really 2 parts to this exersize:
 =item DB
 
 The current Oracle chunk is a package which can be used directly to debug
-PL/SQL without involving perl at all, but which has similar commands to
-the perl debugger.
+PL/SQL without involving perl at all, but which has similar, but very limited, 
+commands to the perl debugger.
 
 Please see the I<packages/header.sql> file for credits for the original B<db> PL/SQL.
 
@@ -1855,7 +1855,6 @@ sub abort {
     	ret := dbms_debug.continue(runinfo, dbms_debug.abort_execution, 0);
 		END;
 	#;
-	print "exec($exec)\n";
 
 	$self->do($exec)->get_msg;
 }

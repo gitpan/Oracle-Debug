@@ -1,6 +1,8 @@
 /*
 
-# $Id: xrun.sql,v 1.3 2003/07/14 10:00:17 oradb Exp $
+# $Id: xrun.sql,v 1.4 2003/07/18 15:40:25 oradb Exp $
+
+Create a dummy procedure to run.
 
 */
 

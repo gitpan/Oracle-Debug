@@ -1,7 +1,14 @@
-# $Id: oradb.t,v 1.5 2003/07/04 14:57:47 oradb Exp $
+# $Id: oradb.t,v 1.6 2003/07/19 08:25:31 oradb Exp $
 
 use Data::Dumper;
 use Test::More tests => 12;
+
+use Test::More;
+if (require qw(DBD::Oracle)) {
+	 plan skip_all => 'DBD::Oracle not installed';
+} else {
+	 plan tests => 12;
+}
 
 # 1
 BEGIN { use_ok('Oracle::Debug') };

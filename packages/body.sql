@@ -1,6 +1,6 @@
 /*
 
-# $Id: body.sql,v 1.17 2003/07/11 14:37:56 oradb Exp $
+# $Id: body.sql,v 1.18 2003/07/18 15:40:25 oradb Exp $
 
 The body for the ORADB package we use in both Oracle and Perl environments. 
 
@@ -441,7 +441,30 @@ Return the appropriate text string for the namespace
 		RETURN xret;
   end libunittype; -- 
 
-	 
+	function breakpoint(xint IN BINARY_INTEGER) 
+		RETURN VARCHAR2 IS
+    xret VARCHAR2(64);
+	BEGIN -- (Internal note: these map to the PBBPT constants)
+		IF xint = 1 THEN
+			xret := 'success';	
+		ELSIF xint = 0 THEN
+			xret := 'unused breakpoint';	
+		ELSIF xint = 2 THEN
+			xret := 'used breakpoint';	
+		ELSIF xint = 4 THEN
+			xret := 'disabled breakpoint';	
+		ELSIF xint = 8 THEN
+			xret := 'remote breakpoint';	
+		ELSE 
+			IF xint IS NULL THEN
+				xret := 'missing breakpoint return code: <' || xint || '> - talk to Oracle'; 
+			ELSE
+				xret := 'unrecognised breakpoint return code: ' || xint;
+			END IF;
+		END IF;
+		RETURN xret;
+	end breakpoint;
+
 	function errorcode(xint IN BINARY_INTEGER) 
 		RETURN VARCHAR2 IS
     xret VARCHAR2(64);
