@@ -1,5 +1,5 @@
 
-# $Id: Debug.pm,v 1.15 2003/05/16 13:29:35 oradb Exp $
+# $Id: Debug.pm,v 1.20 2003/05/17 17:06:23 oradb Exp $
 
 =head1 NAME
 
@@ -11,7 +11,6 @@ package Oracle::Debug;
 
 use 5.008;
 use strict;
-# use threads;
 use warnings;
 use Carp qw(carp croak);
 use Data::Dumper;
@@ -19,7 +18,7 @@ use DBI;
 use Term::ReadKey;
 
 use vars qw($VERSION);
-$VERSION = do { my @r = (q$Revision: 1.15 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+$VERSION = do { my @r = (q$Revision: 1.20 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 
 my $DEBUG = $ENV{Oracle_Debug} || 0;
 
@@ -49,10 +48,12 @@ The current Oracle chunk is a package which can be used directly to debug
 PL/SQL without involving perl at all, but which has similar commands to
 the perl debugger.
 
+Please see the I<packages/header.sql> file for credits for the original B<db> PL/SQL.
+
 =item oradb
 
 The Perl chunk implements a perl-debugger-like interface to the Oracle
-debugger itself, through the B<DB> library above.
+debugger itself, partially via the B<DB> library referenced above.
 
 =back
 
@@ -65,7 +66,7 @@ it from a command line usage.
 
 Ignore any methods which are prefixed with an underscore (_)
 
-We use a special table B<rjsf_oracle_debug> for our own purposes.
+We use a special table B<rfi_oracle_debug> for our own purposes.
 
 Set B<Oracle_Debug>=1 for debugging information.
 
@@ -89,10 +90,11 @@ sub new {
 		'_connected' => 0,
 		'_dbh'       => {},
 		'_debugpid'  => '',
+		'_name'      => '',
 		'_primed'    => 0,
 		'_sessionid' => '',
-		'_source'    => '',
 		'_targetpid' => '',
+		'_type'      => '',
 	}, $class);
 	$self->_prime;
 	# $self->log($self.' '.Dumper($self)) if $DEBUG;
@@ -119,7 +121,7 @@ sub _prime {
 		$self->{_dbh}->{$$} = $self->_connect($h_ref);
 		$self->{_primed}++ if $self->{_dbh}->{$$};
 		$self->dbh->func(20000, 'dbms_output_enable');
-		$self->self_check() && $self->probe_version();
+		$self->self_check();
 	}
 	return ref($self->{_dbh}->{$$}) ? $self : undef;
 }
@@ -187,53 +189,157 @@ sub getarow {
 # parse and control
 # =============================================================================
 
-my %parse = (
-	'b'		=> 'break',
-	'c'	  => 'continue',
-	'h'	  => 'help',
-	'l'	  => 'list_breakpoints',
-	'n'	  => 'next',
-	'p'	  => 'get_val',
-	'r'	  => 'return',
-	'rc'  => 'recompile',
-	's'	  => 'step',
-	'src' => 'list_source',
-	'test'=> 'is_running',
-	'q'   => 'quit',
+my %HISTORY = ();
+my $COMMANDS= 'rc|src|test|perl|sql|shell';
+my %GROUPS  = (
+	+0	=> [qw(rc src)],
+	+2	=> [qw(b c n r s)],
+	+4	=> [qw(l p)],
+	+6	=> [qw(h H ! q)],
+	+8	=> [qw(test perl sql shell)],
 );
+my %COMMAND = (
+	'b'		=> {
+		'handle'	=> 'break',
+		'syntax'	=> 'b [lineno]',
+		'simple'	=> 'set breakpoint', 
+		'detail'	=> 'set breakpoint on given line of code identified by name',
+	},
+	'c'	  => {
+		'handle'	=> 'continue',
+		'syntax'	=> 'c',
+		'simple'	=> 'continue to next interesting event',
+		'detail'	=> 'breakpoint or similar',
+	},
+	'h'	  => {
+		'handle'	=> 'help',
+		'syntax'	=> 'h [cmd|h|syntax]',
+		'simple'	=> 'help listing - h h for more',
+		'detail'	=> 'you can also give a command as an argument (eg: h b)',
+	},
+	'H'	  => {
+		'handle'	=> 'history',
+		'syntax'	=> 'H',
+		'simple'	=> 'command history',
+		'detail'	=> 'history listing not including single character commands',
+	},
+	'l'	  => {
+		'handle'	=> 'list_breakpoints',
+		'syntax'	=> 'l',
+		'simple'	=> 'list breakpoints',
+		'detail'	=> 'on which line breakpoints exist',
+	},
+	'n'	  => {
+		'handle'	=> 'next',
+		'syntax'	=> 'n',
+		'simple'	=> 'next line',
+		'detail'	=> 'continue until the next line',
+	},
+	'p'	  => {
+		'handle'	=> 'get_val',
+		'syntax'	=> 'p',
+		'simple'	=> 'print',
+		'detail'	=> 'print the value of a variable',
+	},
+	'perl'=> {
+		'handle'	=> 'perl',
+		'syntax'	=> 'perl <valid perl command>',
+		'simple'	=> 'perl command',
+		'detail'	=> 'execute a perl command',
+	},
+	'q'   => {
+		'handle'	=> 'quit',
+		'syntax'	=> 'q(uit)',
+		'simple'	=> 'exit',
+		'detail'	=> 'quit the oradb',
+	},
+	'r'	  => {
+		'handle'	=> 'return',
+		'syntax'	=> 'r',
+		'simple'	=> 'return',
+		'detail'	=> 'return from the current block',
+	},
+	'rc'  => {
+		'handle'	=> 'recompile',
+		'syntax'	=> 'rc name [<PROC>(EDURE)|PACK(AGE)]',
+		'simple'	=> 'recompile + sync',
+		'detail'	=> 'recompile the program and synchronize with the target, '.
+                 '(note that this session _should_ hang until the procedure is executed in the target session)'
+	},
+	's'	  => {
+		'handle'	=> 'step',
+		'syntax'	=> 's',
+		'simple'	=> 'step into',
+		'detail'	=> 'step into the next function or method call',
+	},
+	'shell'	=> {
+		'handle'	=> 'shell',
+		'syntax'	=> 'shell <valid shell command>',
+		'simple'	=> 'shell command',
+		'detail'	=> 'execute a shell command',
+	},
+	'sql' => {
+		'handle'	=> 'sql',
+		'syntax'	=> 'sql <valid SQL>',
+		'simple'	=> 'SQL select',
+		'detail'	=> 'execute a SQL SELECT statement',
+	},
+	'src' => {
+		'handle'	=> 'list_source',
+		'syntax'	=> 'sql name [<PROC>(EDURE)|PACK(AGE)]',
+		'simple'	=> 'list source code',
+		'detail'	=> 'list source for given code (name)',
+	},
+	'test'=> {
+		'handle'	=> 'is_running',
+		'syntax'	=> 'test',
+		'simple'	=> 'target is running',
+		'detail'	=> 'test whether target session is currently running and responding',
+	},
+	'!'   => {
+		'handle'	=> 'rerun',
+		'syntax'	=> '! (!|historyno)',
+		'simple'	=> 'run history command',
+		'detail'	=> 'run a command from the history list',
+	},
+);
+
+=cut
 
 =item help
 
-Print the help listings
+Print the help listings where I<levl> is one of: 
 
-	$o_oradb->help;
+	h    (simple)
+
+	h h  (detail)
+	
+	h b  (help for break command etc.)
+
+	$o_oradb->help($levl);
 
 =cut
 
 sub help {
 	my $self = shift;
-	my $help = qq|
-oradb help:
-    rc [proc]       recompile an existing package or procedure for debugging 
-                    (note that this session will hang until the procedure is executed in the target session).
+	my $levl = shift || '';
 
-    l               list breakpoints
-    src [proc]      show source
-		p variable      print value of variable
-
-    b name lineno   set breakpoint on given line of code identified by name 
-    c               continue
-    n               next
-    r               return
-    s               step into
-
-    test            test the target is running
-    q               quit
-|;
+	my $help = '';
+	if (grep(/^$levl$/, keys %COMMAND)) {
+			$help .= "\tsyntax: $COMMAND{$levl}{syntax}\n\t$COMMAND{$levl}{detail}\n";
+	} else {
+		$levl = 'simple' unless $levl =~ /^(simple|detail|syntax|handle)$/io;
+		$help = "oradb help:\n";
+		foreach my $grp (sort { $a <=> $b } keys %GROUPS) {
+			foreach my $char (@{$GROUPS{$grp}}) {
+				$help .= "\t".($levl ne 'syntax' ? "$char\t" : '')."$COMMAND{$char}{$levl}\n";
+			}
+			$help .= "\n";
+		}
+	}
 
 	return $help;
 }
-
 
 =item parse
 
@@ -248,12 +354,15 @@ sub parse {
 	my $cmd  = shift;
 	my $input= shift;
 
-	unless ($self->can($parse{$cmd})) {
+	unless ($self->can($COMMAND{$cmd}{handle})) {
 		$self->error("command ($cmd) not understood");
 		print $self->help;
 	} else {
-		my $handler = $parse{$cmd} || 'help';
+		$DB::single=2;
+		my $handler = $COMMAND{$cmd}{handle} || 'help';
+		# print "xxx ->$handler<- xxx\n";
 		my @res = $self->$handler($input);
+		# print "xxx ->@res<- xxx\n";
 		$self->log("cmd($cmd) input($input) handler($handler) returned(@res)") if $DEBUG;
 		print @res;
 	}
@@ -309,12 +418,16 @@ sub recompile {
 	my $args = shift;
 	my @res  = ();
 
-	unless ($args =~ /^(\w+)\s+(\w+)$/o) {
-		$self->error("recompile requires 'TYPE NAME' but recieved '$args'");
+	my ($name, $type) = split(/\s+/, $args);
+	$name = uc($name); $type = '' unless $type;
+	$type = ($type =~ /^PROC/io ? 'PROCEDURE' : $type =~ /^FUNC/io ? 'FUNCTION' : $type =~ /^PACK/io ? 'PACKAGE' : 'PROCEDURE');
+	unless ($name =~ /^\w+$/o && $type =~ /^\w+$/o) {
+		$self->error("recompile requires a name($name) and type($type)");
 	} else {
-		my ($type, $name) = ($1, $2);
-		$self->{_source} = $name;
-		my $exec = qq|ALTER $type $name COMPILE Debug|;
+		$self->{_name} = $name;
+		$self->{_type} = $name;
+		my $exec = qq|ALTER $type $name COMPILE Debug|; 
+		$exec .= ' BODY' if $type eq 'PACKAGE';
 		@res = $self->do($exec)->get_msg;
 		print "Synching - once this hangs, execute this in the target session\n"; 
 		print "\t(if this does not hang, check the connection (with 'test'), and retry)\n";
@@ -323,6 +436,89 @@ sub recompile {
 
 	return @res;
 }
+
+=item perl 
+
+Run a chunk of perl 
+
+	$o_oradb->perl($perl);
+
+=cut
+
+sub perl {
+		my $self = shift;
+		my $perl = shift;
+		
+		eval $perl;
+		if ($@) {
+			$self->error("failed perl expression($perl) - $@");
+		}
+		return "\n";
+}
+
+=item shell 
+
+Run a shell command 
+
+	$o_oradb->shell($shellcommand);
+
+=cut
+
+sub shell {
+		my $self  = shift;
+		my $shell = shift;
+		
+		system($shell);
+		if ($@) {
+			$self->error("failed shell command($shell) - $@");
+		}
+		return "\n";
+}
+
+=item sql 
+
+Run a chunk of SQL (select only)
+
+	$o_oradb->sql($sql);
+
+=cut
+
+sub sql {
+		my $self = shift;
+		my $xsql = shift;
+		my @res  = ();
+
+		unless ($xsql =~ /^\s*SELECT\s+/o) {
+			$self->error("SELECT statements only please: $xsql");
+		} else {
+			$xsql =~ s/\s*;\s*$//;
+			@res = ($self->getarow($xsql), "\n");
+		}
+
+		return @res;
+}
+
+=item run
+
+Run a chunk
+
+	$o_oradb->run($sql);
+
+=cut
+
+sub run {
+      my $self = shift;
+      my $xsql = shift;
+
+      my $exec = qq#
+              BEGIN
+                      $xsql;
+              END;
+      #;
+
+      return $self->do($exec)->get_msg;
+}
+
 
 # =============================================================================
 # start debug and target methods
@@ -339,10 +535,10 @@ Run the target session
 sub target {
 	my $self = shift;
 
-	my $dbid = $self->start_target('rjsf_oradb_sessionid');
+	my $dbid = $self->start_target('rfi_oradb_sessionid');
 	
 	ReadMode 0;
-	print "orasql> enter a command to debug (debugger session must be running...)\n";
+	print "orasql> enter a PL/SQL command to debug (debugger session must be running...)\n";
 	while (1) {
 		print "orasql>";
 		chomp(my $input = ReadLine(0));
@@ -392,7 +588,7 @@ sub start_target {
 		#; # should hang (if 2nd true) unless debugger running
 	$x_res = $self->do($ddid);
 
-=pod
+=rjsf
 	# should be autonomous transaction
 	my $insert = qq#INSERT INTO $self->{_config}{table} 
            (created, debugpid, targetpid, sessionid, data) 
@@ -402,6 +598,7 @@ sub start_target {
 
 	$x_res = $self->do('COMMIT');
 =cut
+
 	$self->log("target started: $dbid") if $DEBUG;
 
 	return $dbid;
@@ -418,20 +615,22 @@ Run the debugger
 sub debugger {
 	my $self = shift;
 
-	my $dbid = $self->start_debug('rjsf_oradb_sessionid');
+	my $dbid = $self->start_debug('rfi_oradb_sessionid');
 	
 	ReadMode 0;
 	print "Welcome to the oradb (type h for help)\n";
-	print "oradb>\n";
+	my $i_cnt = 0;
 	while (1) {
-		print "oradb>";
+		print "oradb> ";
 		chomp(my $input = ReadLine(0));
 		$self->log("processing command($input)") if $DEBUG;
-		if ($input =~ /^\s*(\S+)\s*(.*)$/o) {
-			my ($cmd, $args) = ($1, $2);
-			$self->parse($cmd, $args);
+		if ($input =~ /^\s*($COMMANDS|.)\s*(.*)\s*$/o) {
+			my ($cmd, $args) = ($1, $2); $args =~ s/^\s+//o; $args =~ s/\s+$//o;
+			$self->log("input($input) -> cmd($cmd) args($args)") if $DEBUG;
+			$HISTORY{++$i_cnt} = $cmd.' '.$args unless $cmd =~ /^\s*(.|!.*)\s*$/o;
+			$self->parse($cmd, $args); # + process
 		} else {
-			print "oradb> command ($input) not understood\n";	
+			$self->error("oradb> command ($input) not understood");	
 		}
 	}
 
@@ -482,7 +681,7 @@ Blocks debug session until we exec in target session
 sub sync {
 	my $self = shift;
 
-=pod
+=rjsf
 	my ($tid) = $self->getarow('SELECT targetpid FROM '.$self->{_config}{table}." WHERE debugpid = '".$self->{_debugpid}."'");
 	$self->{_targetpid} = $tid;
 =cut
@@ -525,7 +724,7 @@ sub exec {
 	my $call = shift;
 	my $trim = $call; $trim =~ s/^(\w+)?\(.*$/$1/o;
 
-	$self->{_source} = $trim;
+	$self->{_name} = $trim;
 	my @res = ();
 
 	# small loop
@@ -743,18 +942,20 @@ Print source
 
 sub list_source {
 	my $self = shift;
-	my $name = shift;
+	my $args = shift;
 	my @res  = ();
 
-	unless ($name =~ /^\w+$/o) {
-		$self->error("list source requires a name($name) of a procedure or package");
+	my ($name, $type) = split(/\s+/, $args);
+	$name = uc($name); $type = '' unless $type;
+	$type = ($type =~ /^PROC/io ? 'PROCEDURE' : $type =~ /^FUNC/io ? 'FUNCTION' : $type =~ /^PACK/io ? 'PACKAGE BODY' : 'PROCEDURE');
+	unless ($name =~ /^\w+$/o && $type =~ /^\w+/o) {
+		$self->error("list source requires a name($name) and type($type)");
 	} else {
-		$name = uc($name);
 		my $exec = qq#
 			DECLARE
 				xsrc VARCHAR2(4000);
 				CURSOR src IS
-					SELECT line, text FROM all_source WHERE name = '$name' AND type != 'PACKAGE' ORDER BY line;
+					SELECT line, text FROM all_source WHERE name = '$name' AND type = '$type' AND type != 'PACKAGE' ORDER BY name, line;
 			BEGIN
 				FOR rec IN src LOOP
 					xsrc := rec.line || ': ' || rec.text;
@@ -778,7 +979,7 @@ Print breakpoint info
 
 sub list_breakpoints {
 	my $self = shift;
-	my $name = uc(shift) || $self->{_source};
+	my $name = uc(shift) || $self->{_name};
 
 	my $exec = qq/
 		DECLARE
@@ -798,7 +999,7 @@ sub list_breakpoints {
 	return $self->do($exec)->get_msg;
 }
 
-=pod
+=rjsf
 		vanilla version
 		DECLARE 
 			runinfo dbms_debug.runtime_info; 
@@ -809,6 +1010,47 @@ sub list_breakpoints {
       db.print_runtime_info_with_source(runinfo, i_before, i_after, i_width);
 		END;
 =cut
+
+=item history
+
+Display the command history
+
+	print $o_oradb->history;	
+
+=cut
+
+sub history {
+	my $self = shift;
+
+	my @hist = map { "$_: $HISTORY{$_}\n" } sort { $a <=> $b } grep(!/\!/, keys %HISTORY);
+
+	return @hist;
+}
+
+=item rerun
+
+Rerun a command from the history list
+
+	$o_oradb->rerun($histno);
+
+=cut
+
+sub rerun {
+	my $self = shift;
+	my $hist = shift || 0;
+
+	if ($hist =~ /!/o) {
+		($hist) = reverse sort { $a <=> $b } keys %HISTORY;
+	}
+	unless ($HISTORY{$hist} =~ /^(\S+)\s(.*)$/o) {
+		$self->error("invalid history key($hist) - try using 'H'");
+	} else {
+		my ($cmd, $args) = ($1, $2);
+		$self->parse($cmd, $args); # + process
+	}
+
+	return ();
+}
 
 # =============================================================================
 # check and ping methods
@@ -951,7 +1193,7 @@ sub get_msg {
 		@msg = grep(/./, $self->dbh->func('dbms_output_get'));
 	}
 
-	return (@msg >= 1 ? "\n".join("\n", @msg)."\n" : ''); 
+	return (@msg >= 1 ? join("\n", @msg)."\n" : "\n"); 
 }
 
 =item get_val
@@ -1032,6 +1274,7 @@ Quit the debugger
 
 sub quit {
 	my $self = shift;
+	print "oradb detaching\n";
 	# $self->detach;
 	exit;
 }
@@ -1044,7 +1287,8 @@ Error handler
 
 sub error {
 	my $self = shift;
-	my $errs = join(' ', 'Error:', @_).($DB::errstr || '');
+	# $DB::errstr;
+	my $errs = join(' ', 'Error:', @_).($DB::errstr || '')."\n";
 	carp($errs);
 	return $errs;
 }
@@ -1100,8 +1344,6 @@ sub DESTROY {
 DBD::Oracle
 
 perldebug
-
-perldebugtut
 
 =head1 AUTHOR
 

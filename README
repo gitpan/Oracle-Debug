@@ -1,4 +1,4 @@
-# $Id: README,v 1.6 2003/05/16 13:05:01 oradb Exp $
+# $Id: README,v 1.8 2003/05/17 17:06:20 oradb Exp $
 
 DESCRIPTION
 
@@ -11,9 +11,20 @@ For more info see L<perldoc Oracle::Debug>
 Note that this package is an alpha release!
 
 That is, it is in a state which proves the concept; it works for me,
-and I am now working on making it more robust and general purpose.
+in a bare-bones manner, and I am now working on making it more robust.
 
-No-one else is expected to use it in anger yet, but you're welcome to try :-)
+At the very least you will probably have to kill the target process with
+a CTRL-C or similar, but this should be harmless enough.  Also, it is
+probably unlikely that you can reconnect in the middle of a debugger
+session, it is preferable to quit both sessions and start again, etc.
+Getting and setting variables processes are also prone to failures
+or crashes.  
+
+Debugging procedures appears possible, but packages have a problem.
+If you wrap the packaged procedure in an external procedure (like the
+example supplied), you should have no problems.
+
+No-one else is expected to use this in anger yet, but you're welcome to try :-)
 
 *** CAVEAT LECTOR ***
 

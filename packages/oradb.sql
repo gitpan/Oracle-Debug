@@ -4,44 +4,54 @@ Create a dummy package and procedure to debug
 
 */
 
-CREATE OR REPLACE PROCEDURE X (	
+CREATE OR REPLACE PROCEDURE xproc (	
 	xarg IN  VARCHAR2 DEFAULT 'default_x_value'
 ) IS
 	xret VARCHAR2(64) DEFAULT xarg;
 BEGIN -- $$
-	xret := 'this-n-that';
 	SELECT sysdate INTO xret FROM dual;
-	oradb_package.oradb_proc(xarg);
-END X;
+	oradb_package.proc(xarg);
+END xproc;
+/
+
+CREATE OR REPLACE FUNCTION xfunc (	
+	xarg IN  VARCHAR2 DEFAULT 'default_x_value'
+) RETURN VARCHAR2 IS
+	xret VARCHAR2(64) DEFAULT xarg;
+BEGIN -- $$
+	SELECT sysdate INTO xret FROM dual;
+	oradb_package.proc(xarg);
+	RETURN xret;
+END xfunc;
 /
 
 CREATE OR REPLACE PACKAGE oradb_package IS
-	PROCEDURE oradb_proc (
+	PROCEDURE proc (
 		xarg IN  VARCHAR2 DEFAULT 'default_proc_value'
 	);
-	FUNCTION oradb_func (
+	FUNCTION func (
 		xarg IN  VARCHAR2 DEFAULT 'default_func_value'
 	) RETURN VARCHAR2;
 END oradb_package;
 /
 CREATE OR REPLACE PACKAGE BODY oradb_package IS
 
-	PROCEDURE oradb_proc (
+	PROCEDURE proc (
 		xarg IN  VARCHAR2 DEFAULT 'default_proc_value'
 	) IS
 		xret VARCHAR2(64) DEFAULT xarg;
-	BEGIN -- oradb_proc
+	BEGIN -- proc
 		SELECT sysdate INTO xret FROM dual;
-	END oradb_proc;
+	END proc;
 
-	FUNCTION oradb_func (
+	FUNCTION func (
 		xarg IN  VARCHAR2 DEFAULT 'default_func_value'
 	) RETURN VARCHAR2 IS
 		xret VARCHAR2(64) DEFAULT xarg;
-	BEGIN -- oradb_func
+	BEGIN -- func
 		SELECT sysdate INTO xret FROM dual;
 		RETURN xret;
-	END oradb_func;
+	END func;
 
 END oradb_package;
 /
