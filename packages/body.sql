@@ -1,21 +1,19 @@
 /*
 
-# $Id: body.sql,v 1.2 2003/05/16 13:10:20 oradb Exp $
+# $Id: body.sql,v 1.17 2003/07/11 14:37:56 oradb Exp $
 
-The body for the DB package we use in both Oracle and Perl environments.
+The body for the ORADB package we use in both Oracle and Perl environments. 
 
 */
 
-create or replace package body db as
+create or replace package body oradb as
 
   procedure q is
     runinfo dbms_debug.runtime_info;
     ret     binary_integer;
   begin
-    ret := dbms_debug.continue(
-      runinfo,
-      dbms_debug.abort_execution ,
-      0);
+    ret := dbms_debug.continue(runinfo, dbms_debug.abort_execution, 0);
+    -- ret := continue_(dbms_debug.abort_execution);
   end; --q
 
   procedure t is
@@ -51,9 +49,9 @@ create or replace package body db as
 
   procedure continue_(break_flags in number) is
     runinfo dbms_debug.runtime_info;
-    ret     binary_integer;
+    xec binary_integer;
   begin
-    ret := dbms_debug.continue(
+    xec := dbms_debug.continue(
       runinfo,
         break_flags,
     --   dbms_debug.break_next_line     +  -- Break at next source line (step over calls). 
@@ -69,16 +67,12 @@ create or replace package body db as
        dbms_debug.info_getstackdepth +
        0);
   
-     if ret = dbms_debug.success then
+     if xec = dbms_debug.success then
       -- dbms_output.put_line('  continue: success');
        -- print_runtime_info(runinfo);
        print_runtime_info_with_source(runinfo,p_cont_lines_before, p_cont_lines_after,p_cont_lines_width);
-     elsif ret = dbms_debug.error_timeout then 
-       dbms_output.put_line('  continue: error_timeout');
-     elsif ret = dbms_debug.error_communication then
-       dbms_output.put_line('  continue: error_communication');
      else
-       dbms_output.put_line('  continue: unknown error, ret = ' || ret);
+			dbms_output.put_line('Error: ' || oradb.errorcode(xec));
      end if;
   end; -- continue_
 
@@ -106,36 +100,20 @@ create or replace package body db as
   end; -- B
 
   procedure p(name in varchar2) is
-    ret   binary_integer;
+    xec   binary_integer;
     val   varchar2(4000);
     frame number;
   begin
     frame := 0;
-    ret := dbms_debug.get_value(
-      name,
-      frame,
-      val,
-      null);
-
-    if ret = dbms_debug.success then
+    xec := dbms_debug.get_value(name, frame, val, null);
+    if xec = dbms_debug.success then
       dbms_output.put_line('  ' || name || ' = ' || val);
-    elsif ret = dbms_debug.error_bogus_frame then
-      dbms_output.put_line('  print_var: frame does not exist');
-    elsif ret = dbms_debug.error_no_debug_info then
-      dbms_output.put_line('  print_var: Entrypoint has no debug info');
-    elsif ret = dbms_debug.error_no_such_object then
-      dbms_output.put_line('  print_var: variable ' || name || ' does not exist in in frame ' || frame);
-    elsif ret = dbms_debug.error_unknown_type then
-      dbms_output.put_line('  print_var: The type information in the debug information is illegible');
-    elsif ret = dbms_debug.error_nullvalue then
-      dbms_output.put_line('  ' || name || ' = NULL');
-    elsif ret = dbms_debug.error_indexed_table then
-      dbms_output.put_line('  print_var: The object is a table, but no index was provided.');
-    else
-      dbms_output.put_line('  print_var: unknown error');
+		else
+			dbms_output.put_line('Error: ' || oradb.errorcode(xec));
     end if;
   end; -- p
 
+/*
   procedure debug(debug_session_id in varchar2) is
   begin
     dbms_debug.attach_session(debug_session_id);
@@ -151,9 +129,11 @@ create or replace package body db as
     select dbms_debug.initialize into debug_session_id from dual;
 		--
     dbms_debug.debug_on(TRUE, FALSE);
+    -- dbms_debug.debug_on(TRUE, TRUE);
     return debug_session_id;
   end;  -- target
-  
+*/
+
   procedure print_proginfo(prginfo dbms_debug.program_info) as
   begin
     dbms_output.put_line('  Namespace:  ' || str_for_namespace(prginfo.namespace));
@@ -251,6 +231,7 @@ create or replace package body db as
     proginfo dbms_debug.program_info;
     ret      binary_integer;
     bp       binary_integer;
+    fuzzy    binary_integer := 0;
     v_owner  varchar2(30);
   begin
     if owner is null then
@@ -269,7 +250,9 @@ create or replace package body db as
     ret := dbms_debug.set_breakpoint(
       proginfo,
       proginfo.line#,
-      bp);
+      bp,
+			fuzzy -- not implemented by Oracle yet
+			);
   
     if ret = dbms_debug.success then 
       dbms_output.put_line('  set_breakpoint: success');
@@ -303,13 +286,13 @@ create or replace package body db as
     nsps   varchar2(40);
   begin
     if nsp = dbms_debug.Namespace_cursor then
-      nsps := 'Cursor (anonymous block)';
+      nsps := 'cursor (anonymous block)';
     elsif nsp = dbms_debug.Namespace_pkgspec_or_toplevel then
       nsps := 'package, proc, func or obj type';
     elsif nsp = dbms_debug.Namespace_pkg_body then
       nsps := 'package body or type body';
     elsif nsp = dbms_debug.Namespace_trigger then
-      nsps := 'Triggers';
+      nsps := 'triggers';
     else
       nsps := 'Unknown namespace';
     end if;
@@ -398,5 +381,153 @@ create or replace package body db as
     dbms_output.put_line('  probe version is: ' || major || '.' || minor);
   end; -- version
 
-end;
+/*
 
+Return the appropriate text string for the namespace
+
+	varchar2 := oradb.namespace(binary_integer);
+
+*/
+ 
+	function namespace (xint IN BINARY_INTEGER) 
+		RETURN VARCHAR2 IS
+    xret VARCHAR2(64);
+	BEGIN -- (Internal note: these map to the KGLN constants)
+		IF xint = 0 THEN
+			xret := 'CURSOR';
+		ELSIF xint = 1 THEN
+			xret := 'SPEC or TOPLEVEL';
+		ELSIF xint = 2 THEN
+			xret := 'PACKAGE BODY';
+		ELSIF xint = 3 THEN
+			xret := 'TRIGGER';
+		ELSIF xint = 127 THEN
+			xret := 'NONE';
+		ELSE 
+			IF xint IS NULL THEN
+				xret := 'missing namespace: <' || xint || '> - talk to Oracle';
+			ELSE
+				xret := 'unrecognised namespace: ' || xint;
+			END IF;
+		END IF;
+		RETURN xret;
+  end namespace; -- 
+ 
+	function libunittype (xint IN BINARY_INTEGER) 
+		RETURN VARCHAR2 IS
+    xret VARCHAR2(64);
+	BEGIN -- (Internal note: these map to the KGLT constants)
+		IF xint = 0 THEN
+			xret := 'CURSOR';	
+		ELSIF xint = 7 THEN
+			xret := 'PROCEDURE';
+		ELSIF xint = 8 THEN
+			xret := 'FUNCTION';
+		ELSIF xint = 9 THEN
+			xret := 'PACKAGE';
+		ELSIF xint = 11 THEN
+			xret := 'PACKAGE_BODY';
+		ELSIF xint = 12 THEN
+			xret := 'TRIGGER';
+		ELSIF xint = -1 THEN
+			xret := 'UNKNOWN';
+		ELSE 
+			IF xint IS NULL THEN
+				xret := 'missing library unit type: <' || xint || '> - talk to Oracle';
+			ELSE
+				xret := 'unrecognised library unit type: ' || xint;
+			END IF;
+		END IF;
+		RETURN xret;
+  end libunittype; -- 
+
+	 
+	function errorcode(xint IN BINARY_INTEGER) 
+		RETURN VARCHAR2 IS
+    xret VARCHAR2(64);
+		xoer VARCHAR2(64) := ' (non-informative Oracle error message)';
+	BEGIN -- (Internal note: these map to the PBERR constants)
+		IF xint = 0 THEN
+			xret := 'success';	
+		ELSIF xint = 1 THEN
+			xret := 'no such frame';
+		ELSIF xint = 2 THEN
+			xret := 'no debug info';
+		ELSIF xint = 3 THEN
+			xret := 'no such object/variable/parameter/package/privileges' || xoer;
+		ELSIF xint = 4 THEN
+			xret := 'unknown type / garbled info';
+		ELSIF xint = 18 THEN
+			xret := 'unable to set entire index collection';
+		ELSIF xint = 19 THEN
+			xret := 'illegal collection index (v8)';
+		ELSIF xint = 40 THEN
+			xret := 'null atomical collection (v8)';
+		ELSIF xint = 32 THEN
+			xret := 'null value';
+		ELSIF xint = 5 THEN
+			xret := 'illegal value (constraint violation)';
+		ELSIF xint = 6 THEN
+			xret := 'illegal null (constraint violation)';
+		ELSIF xint = 7 THEN
+			xret := 'malformed value ';
+		ELSIF xint = 8 THEN
+			xret := 'unknown error' || xoer;
+		ELSIF xint = 11 THEN
+			xret := 'incomplete name (not a scalar lvalue)';
+		ELSIF xint = 12 THEN
+			xret := 'illegal breakpoint - no such line';
+		ELSIF xint = 13 THEN
+			xret := 'no such breakpoint';
+		ELSIF xint = 14 THEN
+			xret := 'unused (idle) breakpoint';
+		ELSIF xint = 15 THEN
+			xret := 'stale breakpoint';
+		ELSIF xint = 16 THEN
+			xret := 'unable to set breakpoint (bad handle)';
+		ELSIF xint = 17 THEN
+			xret := 'NYI (not yet implemented)';
+		ELSIF xint = 27 THEN
+			xret := 'deferred request - currently unused?';
+		ELSIF xint = 28 THEN
+			xret := 'internal Probe exception' || xoer;
+		ELSIF xint = 29 THEN
+			xret := 'pipe communication error';
+		ELSIF xint = 31 THEN
+			xret := 'timeout failure';
+		ELSIF xint = 9 THEN
+			xret := 'probe-run mismatch';
+		ELSIF xint = 10 THEN
+			xret := 'no rph' || xoer;
+		ELSIF xint = 20 THEN
+			xret := 'invalid Probe (version?)';
+		ELSIF xint = 21 THEN
+			xret := 'upierr' || xoer;
+		ELSIF xint = 22 THEN
+			xret := 'noasync' || xoer;
+		ELSIF xint = 23 THEN
+			xret := 'nologon' || xoer;
+		ELSIF xint = 24 THEN
+			xret := 'reinit' || xoer;
+		ELSIF xint = 25 THEN
+			xret := 'unrecognized' || xoer;
+		ELSIF xint = 26 THEN
+			xret := 'synch' || xoer;
+		ELSIF xint = 30 THEN
+			xret := 'incompatible' || xoer; 
+		ELSE 
+			IF xint IS NULL THEN
+				xret := 'missing error code: <' || xint || '> - talk to Oracle'; 
+			ELSE
+				xret := 'unrecognised error code: ' || xint;
+			END IF;
+		END IF;
+		RETURN xret;
+	end errorcode;
+
+end oradb;
+
+/
+
+show errors;
+/

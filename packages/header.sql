@@ -1,8 +1,8 @@
 /*
 
-# $Id: header.sql,v 1.1 2003/05/16 06:50:29 oradb Exp $
+# $Id: header.sql,v 1.5 2003/07/09 15:54:30 oradb Exp $
 
-The header for the DB package.
+The header for the ORADB package .
 
 The original version of this Oracle package was borrowed heavily (cut'n'paste) from:
 
@@ -14,9 +14,9 @@ at this location:
 
 */
 
-create or replace package db as
-  function  target return varchar2;
-  procedure debug(debug_session_id in varchar2);
+create or replace package oradb as
+--  function  target return varchar2;
+--  procedure debug(debug_session_id in varchar2);
   procedure sync;
 
   procedure q;   
@@ -51,5 +51,11 @@ create or replace package db as
   p_cont_lines_before number;
   p_cont_lines_after  number;
   p_cont_lines_width  number;
-end;
 
+	function namespace (xint IN BINARY_INTEGER) RETURN VARCHAR2; 
+	function libunittype (xint IN BINARY_INTEGER) RETURN VARCHAR2;
+	function errorcode(xint IN BINARY_INTEGER) RETURN VARCHAR2;
+	
+end oradb;
+/
+show errors;

@@ -1,4 +1,4 @@
-# $Id: oradb.t,v 1.4 2003/05/16 13:29:36 oradb Exp $
+# $Id: oradb.t,v 1.5 2003/07/04 14:57:47 oradb Exp $
 
 use Data::Dumper;
 use Test::More tests => 12;
@@ -20,23 +20,23 @@ ok(ref($odb), 'new');
 
 # 3
 my $dbh = $odb->dbh;
-ok($dbh->isa('DBI::db'), 'dbi') or diag('dbi: '.Dumper($dbh));
+ok($dbh->isa('DBI::db'), 'dbh') or diag('dbi: '.Dumper($dbh));
 
 # 4
 my ($err) = $odb->error('xxx');
-ok($err eq 'Error: xxx', 'error') or diag("dodgy error: $err");
+ok($err =~  /^Error: xxx/, 'error') or diag("dodgy error: <$err>");
 
 # 5
 my ($res) = $odb->getarow('SELECT sysdate FROM dual');
-ok($res =~ /^\d\d\-\w\w\w-\d\d$/o, 'getarow') or diag("failed to getarow(sysdate)");
+ok($res =~ /^\d\d\-\w\w\w-\d\d$/o, 'getarow - '.$res) or diag("failed to getarow(sysdate)");
 
 # 6
-my $checked = $odb->self_check;
-ok($checked, 'self_check') or diag('self_check: '.Dumper($checked));
+my $checked = $odb->_self_check;
+ok($checked, 'self_check - '.$checked) or diag('self_check: '.Dumper($checked));
 
 # 7
 my $pv = $odb->probe_version;
-ok($pv =~ /probe\s+version:\s+\d+\.\d+/, 'probe_version') or diag('probe: '.Dumper($pv));
+ok($pv =~ /probe\s+version:\s+\d+\.\d+/, 'prove_version') or diag('probe: '.Dumper($pv));
 
 # 8
 # put_msg

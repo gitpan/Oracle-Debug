@@ -1,4 +1,4 @@
-# $Id: MANIFEST,v 1.5 2003/05/16 08:53:45 oradb Exp $
+# $Id: MANIFEST,v 1.8 2003/07/09 15:43:47 oradb Exp $
 
 Changes
 README
@@ -6,10 +6,16 @@ INSTALL
 Makefile.PL
 MANIFEST
 Oracle/Debug.pm
+demo/oradb
 packages/compile.sql
 packages/body.sql
+packages/function.sql
 packages/header.sql
-packages/oradb.sql
+packages/package.sql
+packages/procedure.sql
+packages/xrun.sql
+packages/table.sql
+packages/trigger.sql
 scripts/config
 scripts/debug
 scripts/target

@@ -1,4 +1,4 @@
-# $Id: README,v 1.8 2003/05/17 17:06:20 oradb Exp $
+# $Id: README,v 1.9 2003/07/04 14:57:47 oradb Exp $
 
 DESCRIPTION
 
@@ -28,9 +28,9 @@ No-one else is expected to use this in anger yet, but you're welcome to try :-)
 
 *** CAVEAT LECTOR ***
 
-Full installation instructions are in the ./INSTALL file
+Full installation instructions and depencies are in the ./INSTALL file
 
-See also the ./scripts/demo file which shows stepping through the 
+See also the ./demo/oradb file which shows stepping through the 
 accompanying procedure into an associated package.
 
 DEPENDENCIES

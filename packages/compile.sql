@@ -1,7 +1,7 @@
 
 /*
 
-$Id: compile.sql,v 1.2 2003/05/16 08:53:54 oradb Exp $
+$Id: compile.sql,v 1.3 2003/07/09 14:12:40 oradb Exp $
 
 Compile the db packages and demos we require
 
@@ -10,5 +10,7 @@ Compile the db packages and demos we require
 @table
 @header
 @body
-@oradb
+@package
+@procedure
+@function
 

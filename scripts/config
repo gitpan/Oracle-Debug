@@ -1,4 +1,4 @@
-# $Id: config,v 1.4 2003/05/17 16:21:24 oradb Exp $
+# $Id: config,v 1.6 2003/07/09 15:54:30 oradb Exp $
 
 # login info for the database etc.
 
@@ -8,7 +8,7 @@ my $h_conf = {
 	'pass'		=> 'oradb',
 	'logfile'	=> './oradb.log',
 	'comms'	  => './oradb.com',
-	'table'	  => 'RFI_Oracle_Debug',
+	'table'	  => 'oradb_table',
 	'params'  => { AutoCommit => 1, RaiseError => 1 },
 };
 
