@@ -1,0 +1,38 @@
+# $Id: README,v 1.6 2003/05/16 13:05:01 oradb Exp $
+
+DESCRIPTION
+
+A Perl (perldb-like) interface to the Oracle supplied DBMS_DEBUG package for debugging PL/SQL programs.
+
+For more info see L<perldoc Oracle::Debug>
+
+*** CAVEAT LECTOR ***
+
+Note that this package is an alpha release!
+
+That is, it is in a state which proves the concept; it works for me,
+and I am now working on making it more robust and general purpose.
+
+No-one else is expected to use it in anger yet, but you're welcome to try :-)
+
+*** CAVEAT LECTOR ***
+
+Full installation instructions are in the ./INSTALL file
+
+See also the ./scripts/demo file which shows stepping through the 
+accompanying procedure into an associated package.
+
+DEPENDENCIES
+
+This module requires these modules and libraries:
+
+	DBI
+	DBD::Oracle
+
+COPYRIGHT AND LICENCE
+
+Copyright (C) 2003 Richard Foley
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself. 
+

@@ -1,0 +1,47 @@
+#!/usr/local/bin/perl -w
+
+# $Id: debug,v 1.5 2003/05/16 08:53:56 oradb Exp $
+# oracle dbms_debug wrapper
+# sqlplus < compile.sql
+#
+# DEBUG=1 perl590 ./oradb  keyserver.appinfo\(?,?\) xxx
+#
+use strict;
+use Oracle::Debug;
+# $|=1;
+
+my $o_debug = Oracle::Debug->new();
+$o_debug->debugger;
+exit;
+
+__END__
+
+my $DEBUG = $ENV{DEBUG} || 1;
+sub print  { print ('parent:   ',@_, "\n") if $DEBUG};
+&print("audid-sid: "  .$o_debug->audit." audited ($$)");
+#
+# start a target process ->
+#
+my ($odbid) = $o_debug->getarow('SELECT sessionid FROM '.$o_debug->{_config}{table});
+my $dbid = 'rjsf_oracle_dbno';
+&print("ignoring old($odbid) and using new($dbid) instead");
+$DB::single=2; # 
+&print("dbid($dbid): ".$o_debug->start_debug($dbid, $$).' started');
+$DB::single=2; # debug started, go start target now (unless it's already started :) ...
+&print('running: '    .$o_debug->is_running().' ran');
+my @row = $o_debug->getarow('SELECT * FROM '.$o_debug->{_config}{table});
+&print('compiled: '   .$o_debug->compile('x').' compiled'); # create procedure X
+&print('recompile: '  .($o_debug->recompile('PROCEDURE', 'X')).' recompiled');
+&print('source: '     .($o_debug->list_source()).' sourced'); # l
+&print('break: '      .($o_debug->break('X', 1)).' broke');
+$DB::single=2; # about to sync (target has to release us)
+&print('sync: '       .($o_debug->sync()).' synced'); # hangs until target calls run()
+&print('next: '       .$o_debug->next().' nexted');
+&print('next: '       .$o_debug->next().' nexted');
+&print('continue: '   .$o_debug->continue().' continued');
+$DB::single=2;
+&print('execute: '    .$o_debug->execute("ubsw.x('xxx')").' executed');
+&print('cleaning up: '       .$o_debug->cleanup().' cleaned up');
+&print('done');
+exit 0;
+
