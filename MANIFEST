@@ -1,4 +1,4 @@
-# $Id: MANIFEST,v 1.12 2003/07/19 13:50:03 oradb Exp $
+# $Id: MANIFEST,v 1.13 2003/07/30 15:25:11 oradb Exp $
 
 Changes
 README
@@ -19,42 +19,5 @@ packages/trigger.sql
 scripts/config
 scripts/debug
 scripts/target
-slides/compile.png
-slides/connect.png
-slides/context.png
-slides/continue.png
-slides/dbms_debug.png
-slides/dbstart.png
-slides/debug-start.png
-slides/detaching.png
-slides/get-variable.png
-slides/help.png
-slides/history.png
-slides/info.png
-slides/list-breakpoints.png
-slides/list-code.png
-slides/lsnrctl-start.png
-slides/next-proc1.png
-slides/next-proc2.png
-slides/oracle-debug.png
-slides/oradb.png
-slides/package.png
-slides/perl-shell-sql.png
-slides/procedure.png
-slides/recompile-plsql.png
-slides/return.png
-slides/returned-value.png
-slides/sequence
-slides/set-breakpoint.png
-slides/set-variable.png
-slides/sqlplus.png
-slides/status.png
-slides/step-into-package.png
-slides/synchronize.png
-slides/target-execute-code.png
-slides/target-start.png
-slides/test-connection.png
-slides/two-sessions.png
-slides/yapc
 t/oradb.t
 

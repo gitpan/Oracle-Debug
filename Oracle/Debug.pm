@@ -1,5 +1,5 @@
 
-# $Id: Debug.pm,v 1.45 2003/07/19 08:33:28 oradb Exp $
+# $Id: Debug.pm,v 1.46 2003/07/30 15:25:11 oradb Exp $
 
 =head1 NAME
 
@@ -18,7 +18,7 @@ use DBI;
 use Term::ReadKey;
 
 use vars qw($VERSION);
-$VERSION = do { my @r = (q$Revision: 1.45 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
+$VERSION = do { my @r = (q$Revision: 1.46 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r };
 
 my $DEBUG = $ENV{Oracle_Debug} || 0;
 
@@ -255,120 +255,140 @@ my %GROUPS  = (
 my $COMMANDS= join('|', @{$GROUPS{1}}, @{$GROUPS{3}}, @{$GROUPS{5}}, @{$GROUPS{6}}, @{$GROUPS{8}});
 my %COMMAND = (
 	'abort'		=> {
+		'long'		=> 'abortexecution',
 		'handle'	=> 'abort',
-		'syntax'	=> 'abort',
+		'syntax'	=> 'abort[execution]',
 		'simple'	=> 'abort target', 
 		'detail'	=> 'abort currently running program in target session',
 	},
 	'b'		=> {
+		'long'		=> 'setbreakpoint',
 		'handle'	=> 'break',
-		'syntax'	=> 'b [lineno]',
+		'syntax'	=> 'b [lineno] || setbreakpoint [lineno]',
 		'simple'	=> 'set breakpoint', 
 		'detail'	=> 'set breakpoint on given line of code identified by unit name',
 	},
 	'c'	  => {
+		'long'		=> 'continue',
 		'handle'	=> 'continue',
 		'syntax'	=> 'c',
 		'simple'	=> 'continue',
 		'detail'	=> 'continue to breakpoint or other reason to stop',
 	},
 	'check'=> {
+		'long'		=> 'selfcheck',
 		'handle'	=> 'self_check',
-		'syntax'	=> 'check',
+		'syntax'	=> 'check || selfcheck',
 		'simple'	=> 'run a self_check',
 		'detail'	=> 'run a self_check against dbms_debug and probe communications',
 	},
 	'context'	  => {
+		'long'		=> 'context',
 		'handle'	=> 'runtime', # context
 		'syntax'	=> 'context key[=val] [key[=val]]+',
 		'simple'	=> 'get/set context',
 		'detail'	=> 'get/set context for this instance: unit name, type, namespace etc.',
 	},
 	'err'	  => {
+		'long'		=> 'errorstring',
 		'handle'	=> 'plsql_errstr',
 		'syntax'	=> 'err',
 		'simple'	=> 'print plsql_errstr',
 		'detail'	=> 'display the DBI->plsql_errstr (if set)',
 	},
 	'info'	  => {
+		'long'		=> 'information',
 		'handle'	=> 'info',
 		'syntax'	=> 'info',
 		'simple'	=> 'info on current environment',
 		'detail'	=> 'display information on current programs and db(NYI)',
 	},
-	'h'	  => {
+	'help'	  => {
+		'long'		=> 'help',
 		'handle'	=> 'help',
 		'syntax'	=> 'h [cmd|h|syntax]',
 		'simple'	=> 'help listing - h h for more',
 		'detail'	=> 'you can also give a command as an argument (eg: h b)',
 	},
 	'H'	  => {
+		'long'		=> 'historylist',
 		'handle'	=> 'history',
 		'syntax'	=> 'H',
 		'simple'	=> 'command history',
 		'detail'	=> 'history listing not including single character commands',
 	},
 	'l'	  => {
+		'long'		=> 'listsourcecode',
 		'handle'	=> 'list_source',
 		'syntax'	=> 'l unitname [PROC|PACK|TRIG|...]',
 		'simple'	=> 'list source code',
 		'detail'	=> 'list source code given with library type',
 	},
 	'L'	  => {
+		'long'		=> 'listbreakpoints',
 		'handle'	=> 'list_breakpoints',
 		'syntax'	=> 'L',
 		'simple'	=> 'list breakpoints',
 		'detail'	=> 'on which line breakpoints exist',
 	},
 	'n'	  => {
+		'long'		=> 'next',
 		'handle'	=> 'next',
 		'syntax'	=> 'n',
 		'simple'	=> 'next line',
 		'detail'	=> 'continue until the next line',
 	},
 	'perl'=> {
+		'long'		=> 'perlcommand',
 		'handle'	=> 'perl',
 		'syntax'	=> 'perl <valid perl command>',
 		'simple'	=> 'perl command',
 		'detail'	=> 'execute a perl command',
 	},
 	'q'   => {
+		'long'		=> 'quit',
 		'handle'	=> 'quit',
 		'syntax'	=> 'q(uit)',
 		'simple'	=> 'exit',
 		'detail'	=> 'quit the oradb',
 	},
 	'r'	  => {
+		'long'		=> 'return',
 		'handle'	=> 'return',
 		'syntax'	=> 'r',
 		'simple'	=> 'return',
 		'detail'	=> 'return from the current block',
 	},
 	'rc'  => {
+		'long'		=> 'recompilecode',
 		'handle'	=> 'recompile',
 		'syntax'	=> 'rc unitname',
 		'simple'	=> 'recompile',
 		'detail'	=> 'recompile the program/s given ',
 	},
 	's'	  => {
+		'long'		=> 'stepintosubroutine',
 		'handle'	=> 'step',
 		'syntax'	=> 's',
 		'simple'	=> 'step into',
 		'detail'	=> 'step into the next function or method call',
 	},
 	'shell'	=> {
+		'long'		=> 'shellcommand',
 		'handle'	=> 'shell',
 		'syntax'	=> 'shell <valid shell command>',
 		'simple'	=> 'shell command',
 		'detail'	=> 'execute a shell command',
 	},
 	'sql' => {
+		'long'		=> 'sqlcommand',
 		'handle'	=> 'sql',
 		'syntax'	=> 'sql <valid SQL>',
 		'simple'	=> 'SQL select',
 		'detail'	=> 'execute a SQL SELECT statement',
 	},
 	'sync'	  => {
+		'long'		=> 'synchronize',
 		'handle'	=> 'sync',
 		'syntax'	=> 'sync',
 		'simple'	=> 'sync',
@@ -376,42 +396,49 @@ my %COMMAND = (
                  '(note that this session _should_ hang until the procedure is executed in the target session)'
 	},
 	'test'=> {
+		'long'		=> 'testconnection',
 		'handle'	=> 'test',
 		'syntax'	=> 'test',
 		'simple'	=> 'ping and check and if target is running',
 		'detail'	=> 'ping, run a self_check and test whether target session is currently running and responding',
 	},
 	'is_running'=> {
+		'long'		=> 'isrunning',
 		'handle'	=> 'is_running',
 		'syntax'	=> 'is_running',
 		'simple'	=> 'check target is_running',
 		'detail'	=> 'check whether target session is currently running and responding',
 	},
 	'ping'=> {
+		'long'		=> 'pingthedatabase',
 		'handle'	=> 'ping',
 		'syntax'	=> 'ping',
 		'simple'	=> 'ping target',
 		'detail'	=> 'ping target session',
 	},
 	'T'=> {
+		'long'		=> 'backtrace',
 		'handle'	=> 'backtrace',
 		'syntax'	=> 'T',
 		'simple'	=> 'display backtrace',
 		'detail'	=> 'backtrace listings',
 	},
 	'v'	  => {
+		'long'		=> 'variablevalue',
 		'handle'	=> 'value',
 		'syntax'	=> 'v varname[=value]',
 		'simple'	=> 'get/set variable',
 		'detail'	=> 'get or set the value of a variable, (use double quotes to contain spaces)',
 	},
 	'!'   => {
+		'long'		=> 'runhistorycommand',
 		'handle'	=> 'rerun',
 		'syntax'	=> '! (!|historyno)',
 		'simple'	=> 'run history command',
 		'detail'	=> 'run a command from the history list',
 	},
 	'x'   => {
+		'long'		=> 'execute',
 		'handle'	=> 'execute',
 		'syntax'	=> 'x sql',
 		'simple'	=> 'execute sql command',
@@ -469,6 +496,41 @@ sub help {
 	return $help;
 }
 
+=item preparse
+
+Return the command via the shortest match possible
+
+	my $command = $o_oradb->preparse($cmd); # (help|he)->h
+
+=cut
+
+sub preparse {
+	my $self = shift;
+	my $cmd  = shift;
+	my $comm = '';
+
+	my @comms = sort keys %COMMAND;
+	print "preparsing cmd($cmd) against comms(@comms)\n";
+
+	my $i_cnt = my ($found) = grep(/^$cmd/, @comms);
+	if ($i_cnt == 1) {
+		$comm = $found;
+		print "found($found) comm($comm)\n";
+	} else {
+		my @longs = sort map { $COMMAND{$_}{long} } keys %COMMAND;
+		print "preparsing cmd($cmd) against longs(@longs)\n";
+		my $i_cnt = my ($found) = grep(/^$cmd/, @longs);
+		if ($i_cnt == 1) {
+			$comm = $found;
+			print "long($found) comm($comm)\n";
+		}
+	}
+	print "returning comm($comm)\n";
+	@comms = ();
+	
+	return $comm;
+}
+
 =item parse
 
 Parse the input command to the appropriate method
@@ -482,17 +544,20 @@ sub parse {
 	my $cmd  = shift;
 	my $input= shift;
 
+	$DB::single=2;
+	my $xcmd = $self->preparse($cmd);
+	unless (defined($COMMAND{$cmd}{handle})) {
 	unless ($self->can($COMMAND{$cmd}{handle})) {
 		$self->error("command '$cmd' not understood");
 		print $self->help;
 	} else {
-		$DB::single=2;
-		$DB::single=2;
 		my $handler = $COMMAND{$cmd}{handle} || 'help';
 		$self->log("cmd($cmd) input($input) handler($handler)") if $DEBUG;
+		$DB::single=2;
 		my @res = $self->$handler($input);
 		$self->log("handler($handler) returned(@res)") if $DEBUG;
 		print @res;
+	}
 	}
 }
 
@@ -827,7 +892,8 @@ sub debugger {
 		chomp(my $input = ReadLine(0)); 
 		$self->log("processing command($input)") if $DEBUG;
 		$input .= ' ';
-		if ($input =~ /^\s*($COMMANDS)\s+(.*)\s*$/o) {
+		#if ($input =~ /^\s*($COMMANDS)\s+(.*)\s*$/o) {
+		if ($input =~ /^\s*(\w+)\s+(.*)\s*$/o) {
 			my ($cmd, $args) = ($1, $2); 
 			$cmd =~ s/\s+$//; $args =~ s/^\s+//; $args =~ s/\s+$//;
 			$self->log("input($input) -> cmd($cmd) args($args)") if $DEBUG;
